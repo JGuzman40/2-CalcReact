@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Display from '../Display/Display';
 import Button from '../Button/Button';
 import './Calculator.scss';
@@ -8,6 +8,92 @@ function Calculator() {
   const [firstValue, setFirstValue] = useState(null);
   const [operator, setOperator] = useState(null);
   const [waitingForSecondValue, setWaitingForSecondValue] = useState(false);
+
+  const clearDisplay = useCallback(() => {
+    setDisplayValue('0');
+    setFirstValue(null);
+    setOperator(null);
+    setWaitingForSecondValue(false);
+  }, []);
+
+  const inputDigit = useCallback((digit) => {
+    if (waitingForSecondValue) {
+      setDisplayValue(String(digit));
+      setWaitingForSecondValue(false);
+    } else {
+      setDisplayValue(displayValue === '0' ? String(digit) : displayValue + digit);
+    }
+  }, [waitingForSecondValue, displayValue]);
+
+  const inputDot = useCallback(() => {
+    if (!displayValue.includes('.')) {
+      setDisplayValue(displayValue + '.');
+    }
+  }, [displayValue]);
+
+  const calculate = useCallback(() => {
+    const inputValue = parseFloat(displayValue);
+
+    if (operator && firstValue !== null) {
+      let result;
+      switch (operator) {
+        case '+':
+          result = firstValue + inputValue;
+          break;
+        case '-':
+          result = firstValue - inputValue;
+          break;
+        case '*':
+          result = firstValue * inputValue;
+          break;
+        case '/':
+          result = firstValue / inputValue;
+          break;
+        default:
+          return;
+      }
+
+      setDisplayValue(String(result));
+      setFirstValue(result);
+      setOperator(null);
+      setWaitingForSecondValue(true);
+    }
+  }, [displayValue, operator, firstValue]);
+
+  const handleOperator = useCallback((nextOperator) => {
+    const inputValue = parseFloat(displayValue);
+
+    if (firstValue === null) {
+      setFirstValue(inputValue);
+    } else if (operator) {
+      calculate();
+    }
+
+    setWaitingForSecondValue(true);
+    setOperator(nextOperator);
+  }, [displayValue, firstValue, operator, calculate]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const { key } = event;
+      if (/\d/.test(key)) {
+        inputDigit(key);
+      } else if (key === '+' || key === '-' || key === '*' || key === '/') {
+        handleOperator(key);
+      } else if (key === '.') {
+        inputDot();
+      } else if (key === 'Enter' || key === '=') {
+        calculate();
+      } else if (key === 'Escape' || key === 'C') {
+        clearDisplay();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [inputDigit, handleOperator, inputDot, calculate, clearDisplay]);
 
   const handleButtonClick = (buttonValue) => {
     if (buttonValue === 'C') {
@@ -19,60 +105,6 @@ function Calculator() {
     } else {
       inputDigit(buttonValue);
     }
-  };
-
-  const clearDisplay = () => {
-    setDisplayValue('0');
-    setFirstValue(null);
-    setOperator(null);
-    setWaitingForSecondValue(false);
-  };
-
-  const inputDigit = (digit) => {
-    if (waitingForSecondValue) {
-      setDisplayValue(String(digit));
-      setWaitingForSecondValue(false);
-    } else {
-      setDisplayValue(displayValue === '0' ? String(digit) : displayValue + digit);
-    }
-  };
-
-  const handleOperator = (nextOperator) => {
-    const inputValue = parseFloat(displayValue);
-
-    if (firstValue === null) {
-      setFirstValue(inputValue);
-    } else if (operator) {
-      calculate();
-    }
-
-    setWaitingForSecondValue(true);
-    setOperator(nextOperator);
-  };
-
-  const calculate = () => {
-    const inputValue = parseFloat(displayValue);
-
-    switch (operator) {
-      case '+':
-        setDisplayValue(String(firstValue + inputValue));
-        break;
-      case '-':
-        setDisplayValue(String(firstValue - inputValue));
-        break;
-      case '*':
-        setDisplayValue(String(firstValue * inputValue));
-        break;
-      case '/':
-        setDisplayValue(String(firstValue / inputValue));
-        break;
-      default:
-        return;
-    }
-
-    setFirstValue(null);
-    setOperator(null);
-    setWaitingForSecondValue(true);
   };
 
   const isOperator = (value) => {
